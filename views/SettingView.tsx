@@ -16,7 +16,7 @@ const SettingView: React.FC = () => {
     while (true) {
       const q = query(collection(db, collectionName), limit(500));
       const snapshot = await getDocs(q);
-      
+
       if (snapshot.size === 0) break;
 
       const batch = writeBatch(db);
@@ -26,7 +26,7 @@ const SettingView: React.FC = () => {
 
       await batch.commit();
       deletedCount += snapshot.size;
-      
+
       if (snapshot.size < 500) break;
     }
     return deletedCount;
@@ -39,7 +39,7 @@ const SettingView: React.FC = () => {
       "- ระบบจะกลับสู่สถานะว่างเปล่า\n" +
       "- *ลำดับหมายเลข Running No จะยังคงเดิม*"
     );
-    
+
     if (!isConfirmed) return;
 
     setLoadingClear(true);
@@ -95,12 +95,12 @@ const SettingView: React.FC = () => {
         // Query participants who are not Eligible or have draw results
         const q = query(collection(db, COLLECTION_NAME), limit(500));
         const snapshot = await getDocs(q);
-        
+
         if (snapshot.size === 0) break;
 
         const batch = writeBatch(db);
         let hasChanges = false;
-        
+
         snapshot.docs.forEach((d) => {
           const data = d.data();
           // Only update if they aren't already purely eligible/fresh
@@ -120,7 +120,7 @@ const SettingView: React.FC = () => {
         if (hasChanges) await batch.commit();
         if (snapshot.size < 500) break;
       }
-      
+
       alert(`รีเซ็ตสถานะการจับฉลากใหม่เรียบร้อยแล้ว (${updatedCount} รายการ)`);
     } catch (error: any) {
       alert(`ไม่สามารถรีเซ็ตสถานะได้: ${error.message}`);
@@ -202,7 +202,7 @@ const SettingView: React.FC = () => {
         // Update counter in the same final batch if it's the last chunk or update incrementally
         batch.set(counterRef, { value: currentNo }, { merge: true });
         await batch.commit();
-        
+
         setImportProgress({ current: Math.min(i + chunkSize, dataLines.length), total: dataLines.length });
       }
 
@@ -234,15 +234,15 @@ const SettingView: React.FC = () => {
             <div className="flex-grow w-full">
               <h3 className="text-xl font-black text-slate-900 mb-2">Import Participants (CSV)</h3>
               <p className="text-slate-500 text-sm leading-relaxed mb-6">
-                อัพโหลดไฟล์รายชื่อพนักงาน (.csv) เพื่อเพิ่มข้อมูลเข้าระบบจำนวนมาก <br/>
+                อัพโหลดไฟล์รายชื่อพนักงาน (.csv) เพื่อเพิ่มข้อมูลเข้าระบบจำนวนมาก <br />
                 <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded mt-2 block w-fit">
                   รูปแบบ: ., Employee ID, First Name, Last Name, Nickname
                 </span>
               </p>
-              
+
               <div className="space-y-4">
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   accept=".csv"
                   onChange={handleFileUpload}
                   ref={fileInputRef}
@@ -250,7 +250,7 @@ const SettingView: React.FC = () => {
                   className="hidden"
                   id="csv-upload"
                 />
-                <label 
+                <label
                   htmlFor="csv-upload"
                   className={`w-full md:w-auto px-8 py-4 bg-emerald-600 text-white font-black rounded-2xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 hover:-translate-y-1 active:translate-y-0 transition-all flex items-center justify-center gap-3 cursor-pointer ${importing ? 'opacity-50 pointer-events-none' : ''}`}
                 >
@@ -270,8 +270,8 @@ const SettingView: React.FC = () => {
                 </label>
                 {importing && (
                   <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-emerald-500 h-full transition-all duration-300" 
+                    <div
+                      className="bg-emerald-500 h-full transition-all duration-300"
                       style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
                     ></div>
                   </div>
@@ -292,11 +292,11 @@ const SettingView: React.FC = () => {
             <div className="flex-grow">
               <h3 className="text-xl font-black text-slate-900 mb-2">Reset Draw Status</h3>
               <p className="text-slate-500 text-sm leading-relaxed mb-6">
-                ล้างผลการจับฉลากทั้งหมดเพื่อให้เริ่มเล่นใหม่ได้ โดยที่รายชื่อพนักงานยังอยู่ครบ <br/>
+                ล้างผลการจับฉลากทั้งหมดเพื่อให้เริ่มเล่นใหม่ได้ โดยที่รายชื่อพนักงานยังอยู่ครบ <br />
                 <span className="text-amber-500 font-bold">* ทุกคนจะกลับมามีสถานะว่างพร้อมถูกจับ *</span>
               </p>
-              
-              <button 
+
+              <button
                 onClick={handleResetDrawStatus}
                 disabled={loadingClear || loadingReset || loadingResetDraw || importing}
                 className={`w-full md:w-auto px-8 py-4 bg-amber-600 text-white font-black rounded-2xl shadow-lg shadow-amber-200 hover:bg-amber-700 hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50 flex items-center justify-center gap-2`}
@@ -319,11 +319,11 @@ const SettingView: React.FC = () => {
             <div className="flex-grow">
               <h3 className="text-xl font-black text-slate-900 mb-2">Clear Participant Data</h3>
               <p className="text-slate-500 text-sm leading-relaxed mb-6">
-                ลบรายชื่อพนักงานและผลการจับฉลากทั้งหมด (ใช้สำหรับล้างข้อมูลทดสอบ) <br/>
+                ลบรายชื่อพนักงานและผลการจับฉลากทั้งหมด (ใช้สำหรับล้างข้อมูลทดสอบ) <br />
                 <span className="text-rose-500 font-bold">* หมายเลข Running No จะยังคงเดิม *</span>
               </p>
-              
-              <button 
+
+              <button
                 onClick={handleClearParticipants}
                 disabled={loadingClear || loadingReset || loadingResetDraw || importing}
                 className={`w-full md:w-auto px-8 py-4 bg-rose-600 text-white font-black rounded-2xl shadow-lg shadow-rose-200 hover:bg-rose-700 hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50 flex items-center justify-center gap-2`}
@@ -339,18 +339,18 @@ const SettingView: React.FC = () => {
         <div className="bg-white rounded-[2.5rem] p-8 md:p-10 shadow-xl border border-slate-100 transition-all hover:shadow-2xl opacity-80 hover:opacity-100">
           <div className="flex flex-col md:flex-row items-start gap-6">
             <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center flex-shrink-0">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-[#00b751]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </div>
             <div className="flex-grow">
               <h3 className="text-xl font-black text-slate-900 mb-2">Reset Running Number</h3>
               <p className="text-slate-500 text-sm leading-relaxed mb-6">
-                ตั้งค่าตัวนับลำดับผู้สมัครกลับไปเริ่มต้นที่ 1 ใหม่ <br/>
+                ตั้งค่าตัวนับลำดับผู้สมัครกลับไปเริ่มต้นที่ 1 ใหม่ <br />
                 <span className="text-indigo-500 font-bold">* รายชื่อที่มีอยู่เดิมจะยังอยู่ครบถ้วน *</span>
               </p>
-              
-              <button 
+
+              <button
                 onClick={handleResetCounter}
                 disabled={loadingClear || loadingReset || loadingResetDraw || importing}
                 className={`w-full md:w-auto px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-1 active:translate-y-0 transition-all disabled:opacity-50 flex items-center justify-center gap-2`}

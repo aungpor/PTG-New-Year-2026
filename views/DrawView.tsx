@@ -226,7 +226,7 @@ const DrawView: React.FC = () => {
       {/* Brand Header */}
       <div className="text-center mb-12 animate-in fade-in slide-in-from-top-4 duration-1000">
         <h1 className="text-6xl md:text-8xl font-black text-slate-900 tracking-tighter leading-none mb-2 italic">
-          PTG <span className="text-indigo-600">2026</span>
+          PTG <span className="text-[#00b751]">2026</span>
         </h1>
         <div className="flex items-center justify-center gap-4">
           <div className="h-px w-10 bg-slate-300"></div>
@@ -236,7 +236,7 @@ const DrawView: React.FC = () => {
       </div>
 
       {!currentUser ? (
-        <div className="w-full max-w-md bg-white/70 backdrop-blur-xl p-10 rounded-[3rem] shadow-2xl border border-white animate-in zoom-in-95 duration-500">
+        <div className="w-full max-w-md  backdrop-blur-xl p-10 rounded-[3rem]  animate-in zoom-in-95 duration-500">
           <div className="text-center mb-8">
             <h2 className="text-2xl font-black text-slate-900 mb-2">Welcome</h2>
             <p className="text-slate-500 text-sm font-medium">ระบุรหัสพนักงานเพื่อร่วมจับฉลาก</p>
@@ -253,7 +253,7 @@ const DrawView: React.FC = () => {
             {error && <div className="text-rose-500 text-center font-black text-sm animate-pulse">{error}</div>}
             <button
               disabled={loading}
-              className="w-full py-6 bg-slate-900 text-white font-black rounded-[2rem] shadow-2xl hover:bg-indigo-600 hover:-translate-y-1 active:translate-y-0 transition-all text-lg"
+              className="w-full py-6 bg-slate-900 text-white font-black rounded-[2rem] shadow-2xl hover:bg-[#00b751] hover:-translate-y-1 active:translate-y-0 transition-all text-lg"
             >
               {loading ? 'CHECKING...' : 'เข้าสู่ห้องจับฉลาก'}
             </button>
@@ -334,7 +334,7 @@ const DrawView: React.FC = () => {
               <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[3.5rem] p-12 text-center relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-full bg-indigo-500/5 blur-[80px] -z-10"></div>
 
-                <h2 className="text-indigo-600 font-black mb-10 uppercase tracking-[0.4em] text-xs animate-bounce">The Winner is</h2>
+                <h2 className="text-[#00b751] font-black mb-10 uppercase tracking-[0.4em] text-xs animate-bounce">The Winner is</h2>
 
                 <div className="flex justify-center mb-10 scale-125 md:scale-150 animate-in slide-in-from-top-10 duration-700 delay-300 fill-mode-both">
                   <div className="relative group">
@@ -350,7 +350,7 @@ const DrawView: React.FC = () => {
                     {resultUser.FirstName} {resultUser.LastName}
                   </div>
                   {resultUser.Nickname && (
-                    <div className="text-2xl md:text-3xl font-black text-indigo-600 mt-2 bg-indigo-50 inline-block px-4 py-1 rounded-2xl">
+                    <div className="text-2xl md:text-3xl font-black text-[#00b751] mt-2 bg-indigo-50 inline-block px-4 py-1 rounded-2xl">
                       ({resultUser.Nickname})
                     </div>
                   )}

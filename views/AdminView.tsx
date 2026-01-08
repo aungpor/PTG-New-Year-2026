@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { 
-  collection, 
-  onSnapshot, 
-  addDoc, 
-  doc, 
-  runTransaction, 
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  doc,
+  runTransaction,
   serverTimestamp,
   getDocs,
   query,
@@ -38,13 +38,13 @@ const AdminView: React.FC = () => {
     e.preventDefault();
     setError(null);
     if (!formData.EmpID || !formData.FirstName || !formData.LastName) return;
-    
+
     setLoading(true);
     try {
       // 1. Check for duplicate EmpID
       const q = query(collection(db, COLLECTION_NAME), where('EmpID', '==', formData.EmpID.trim()), limit(1));
       const existingSnap = await getDocs(q);
-      
+
       if (!existingSnap.empty) {
         setError(`รหัสพนักงาน ${formData.EmpID} มีอยู่ในระบบแล้ว`);
         setLoading(false);
@@ -63,18 +63,18 @@ const AdminView: React.FC = () => {
           return nextVal;
         });
       }
-      
-      await addDoc(collection(db, COLLECTION_NAME), { 
-        ...formData, 
+
+      await addDoc(collection(db, COLLECTION_NAME), {
+        ...formData,
         EmpID: formData.EmpID.trim(),
-        RunningNo: runNo, 
-        Status: 'Eligible', 
+        RunningNo: runNo,
+        Status: 'Eligible',
         WonBy: null,
         DrawnResult: null,
         WonAt: null,
-        CreatedAt: serverTimestamp() 
+        CreatedAt: serverTimestamp()
       });
-      
+
       setFormData({ EmpID: '', FirstName: '', LastName: '', Nickname: '', Module: '' });
       if (!autoRunning) setManualNo(prev => prev + 1);
     } catch (error) {
@@ -131,21 +131,21 @@ const AdminView: React.FC = () => {
             <h2 className="text-xl font-black text-slate-900 mb-6">Register Participant</h2>
             <form onSubmit={handleAdd} className="space-y-4">
               <div>
-                <input 
-                  type="text" 
-                  required 
-                  value={formData.EmpID} 
-                  onChange={e => setFormData({...formData, EmpID: e.target.value})} 
-                  className={`w-full px-5 py-4 bg-slate-50 border-2 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${error ? 'border-red-200' : 'border-transparent'}`} 
-                  placeholder="รหัสพนักงาน" 
+                <input
+                  type="text"
+                  required
+                  value={formData.EmpID}
+                  onChange={e => setFormData({ ...formData, EmpID: e.target.value })}
+                  className={`w-full px-5 py-4 bg-slate-50 border-2 rounded-2xl focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${error ? 'border-red-200' : 'border-transparent'}`}
+                  placeholder="รหัสพนักงาน"
                 />
                 {error && <p className="mt-2 text-xs font-bold text-red-500 px-1">{error}</p>}
               </div>
-              <input type="text" required value={formData.FirstName} onChange={e => setFormData({...formData, FirstName: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border-0 rounded-2xl font-bold" placeholder="ชื่อ" />
-              <input type="text" required value={formData.LastName} onChange={e => setFormData({...formData, LastName: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border-0 rounded-2xl font-bold" placeholder="นามสกุล" />
-              <input type="text" value={formData.Nickname} onChange={e => setFormData({...formData, Nickname: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border-0 rounded-2xl font-bold" placeholder="ชื่อเล่น" />
-              <input type="text" value={formData.Module} onChange={e => setFormData({...formData, Module: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border-0 rounded-2xl font-bold" placeholder="แผนก" />
-              
+              <input type="text" required value={formData.FirstName} onChange={e => setFormData({ ...formData, FirstName: e.target.value })} className="w-full px-5 py-4 bg-slate-50 border-0 rounded-2xl font-bold" placeholder="ชื่อ" />
+              <input type="text" required value={formData.LastName} onChange={e => setFormData({ ...formData, LastName: e.target.value })} className="w-full px-5 py-4 bg-slate-50 border-0 rounded-2xl font-bold" placeholder="นามสกุล" />
+              <input type="text" value={formData.Nickname} onChange={e => setFormData({ ...formData, Nickname: e.target.value })} className="w-full px-5 py-4 bg-slate-50 border-0 rounded-2xl font-bold" placeholder="ชื่อเล่น" />
+              <input type="text" value={formData.Module} onChange={e => setFormData({ ...formData, Module: e.target.value })} className="w-full px-5 py-4 bg-slate-50 border-0 rounded-2xl font-bold" placeholder="แผนก" />
+
               <div className="py-4 border-t border-slate-50">
                 <div className="flex items-center justify-between mb-3 px-1">
                   <span className="text-xs font-black text-slate-400 uppercase">Auto Number</span>
@@ -183,7 +183,7 @@ const AdminView: React.FC = () => {
                     </tr>
                   ) : participants.map((p) => (
                     <tr key={p.id} className="hover:bg-indigo-50/30 transition-colors">
-                      <td className="px-6 py-5 font-black text-indigo-600">#{p.RunningNo}</td>
+                      <td className="px-6 py-5 font-black text-[#00b751]">#{p.RunningNo}</td>
                       <td className="px-6 py-5">
                         <div className="font-black text-slate-900">{p.FirstName} {p.LastName} {p.Nickname ? `(${p.Nickname})` : ''}</div>
                         <div className="text-[10px] font-bold text-slate-400 uppercase">{p.EmpID} • {p.Module || 'General'}</div>
@@ -196,16 +196,14 @@ const AdminView: React.FC = () => {
                       </td>
                       <td className="px-6 py-5 space-y-2">
                         <div className="flex items-center">
-                          <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase inline-block w-24 text-center ${
-                            p.WonBy ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-400'
-                          }`}>
+                          <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase inline-block w-24 text-center ${p.WonBy ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-400'
+                            }`}>
                             เลข: {p.WonBy ? 'ถูกจับแล้ว' : 'ว่าง'}
                           </span>
                         </div>
                         <div className="flex items-center">
-                          <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase inline-block w-24 text-center ${
-                            p.DrawnResult ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-indigo-400'
-                          }`}>
+                          <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase inline-block w-24 text-center ${p.DrawnResult ? 'bg-emerald-100 text-emerald-600' : 'bg-indigo-100 text-indigo-400'
+                            }`}>
                             สิทธิ์: {p.DrawnResult ? 'จับแล้ว' : 'ยังไม่จับ'}
                           </span>
                         </div>
