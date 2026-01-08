@@ -58,7 +58,7 @@ const DrawView: React.FC = () => {
         setCurrentUser(null);
       } else {
         const userData = { id: snap.docs[0].id, ...snap.docs[0].data() } as Participant;
-        setCurrentUser(userData);
+        
 
         if (userData.Status === 'Finished' && userData.DrawnResult) {
           const resQ = query(collection(db, COLLECTION_NAME), where('EmpID', '==', userData.DrawnResult), limit(1));
@@ -67,6 +67,7 @@ const DrawView: React.FC = () => {
             setResultUser({ id: resSnap.docs[0].id, ...resSnap.docs[0].data() } as Participant);
           }
         }
+        setCurrentUser(userData);
       }
     } catch (err) {
       setError("Error checking identity");
@@ -224,7 +225,7 @@ const DrawView: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-18 relative">
       {/* Brand Header */}
-      <div className="text-center mb-8 animate-in fade-in slide-in-from-top-4 duration-1000">
+      {!currentUser && <div className="text-center mb-8 animate-in fade-in slide-in-from-top-4 duration-1000">
         <h1 className="text-6xl md:text-8xl font-black text-slate-900 tracking-tighter leading-none mb-2 italic">
           PTG <span className="text-[#00b751]">2026</span>
         </h1>
@@ -233,7 +234,7 @@ const DrawView: React.FC = () => {
           <p className="text-slate-400 font-black uppercase tracking-[0.4em] text-[10px] md:text-xs">The Grand Lucky Draw</p>
           <div className="h-px w-10 bg-slate-300"></div>
         </div>
-      </div>
+      </div>}
 
       {!currentUser ? (
         <div className="w-full max-w-md  backdrop-blur-xl p-10 rounded-[3rem]  animate-in zoom-in-95 duration-500">
@@ -260,9 +261,9 @@ const DrawView: React.FC = () => {
           </form>
         </div>
       ) : (
-        <div className="w-full max-w-4xl flex flex-col items-center">
-          <div className="bg-white/80 backdrop-blur-md pl-2 pr-6 py-2 rounded-full border border-white shadow-lg mb-12 flex items-center gap-4 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center text-white font-black shadow-inner">
+        <div className="w-full max-w-4xl flex flex-col items-center m-auto gap-6">
+          <div className="bg-white/80 backdrop-blur-md pl-2 pr-6 py-2 rounded-full border border-white shadow-lg mb-6 flex items-center gap-4 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="w-12 h-12 bg-[#00b751] rounded-full flex items-center justify-center text-white font-black shadow-inner">
               {currentUser.FirstName[0]}
             </div>
             <div>
@@ -270,7 +271,7 @@ const DrawView: React.FC = () => {
               <div className="text-slate-400 font-bold text-[10px] uppercase tracking-wider">{currentUser.EmpID}</div>
             </div>
             <div className="w-px h-6 bg-slate-200 ml-2"></div>
-            <button onClick={resetState} className="text-[10px] font-black text-slate-400 hover:text-rose-500 transition-colors uppercase">Logout</button>
+            <button onClick={resetState} className="text-[16px] font-black text-slate-400 hover:text-rose-500 transition-colors uppercase">Logout</button>
           </div>
 
           {!resultUser ? (
@@ -313,12 +314,21 @@ const DrawView: React.FC = () => {
                 <button
                   onClick={handleDraw}
                   disabled={drawing || eligibleParticipants.length === 0}
-                  className={`group relative px-16 py-8 rounded-[3rem] font-black text-4xl tracking-tighter transition-all shadow-2xl ${drawing ? 'bg-slate-200 text-slate-400 scale-95 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-indigo-600 hover:-translate-y-2 active:scale-95'
+                  className={`group relative px-16 py-8 rounded-[3rem] font-black text-4xl tracking-tighter transition-all shadow-2xl
+    ${drawing
+                      ? 'bg-slate-200 text-slate-400 scale-95 cursor-not-allowed'
+                      : 'bg-[#00b751] text-white hover:bg-[#009e48] hover:-translate-y-2 active:scale-95'
                     }`}
                 >
-                  <span className="relative z-10">{drawing ? 'MIXING...' : 'DRAW NOW'}</span>
-                  {!drawing && <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-rose-600 opacity-0 group-hover:opacity-100 transition-opacity rounded-[3rem]"></div>}
+                  <span className="relative z-10">
+                    {drawing ? 'MIXING...' : 'DRAW NOW'}
+                  </span>
+
+                  {!drawing && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#00b751] to-[#00e676] opacity-0 group-hover:opacity-100 transition-opacity rounded-[3rem]" />
+                  )}
                 </button>
+
 
                 <p className="text-slate-400 font-bold uppercase tracking-[0.4em] text-[10px]">
                   {eligibleParticipants.length} Participants in the bowl
@@ -334,7 +344,7 @@ const DrawView: React.FC = () => {
               <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[3.5rem] p-4 text-center relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-full bg-indigo-500/5 blur-[80px] -z-10"></div>
 
-                <h2 className="text-[#00b751] font-black mb-10 uppercase tracking-[0.4em] text-xs animate-bounce">The Winner is</h2>
+                <h2 className="text-[#00b751] font-black mb-10 uppercase tracking-[0.2em] text-xs animate-bounce">รางวัลที่ได้</h2>
 
                 <div className="flex justify-center mb-10 scale-125 md:scale-150 animate-in slide-in-from-top-10 duration-700 delay-300 fill-mode-both">
                   <div className="relative group">
