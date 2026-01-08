@@ -216,16 +216,16 @@ const DrawView: React.FC = () => {
   if (initialSync) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
-        <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <div className="w-16 h-16 border-4 border-[#00b751] border-t-transparent rounded-full animate-spin mb-4"></div>
         <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Syncing Registry...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-18 relative">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-18 relative ">
       {/* Brand Header */}
-      {!currentUser && <div className="text-center mb-8 animate-in fade-in slide-in-from-top-4 duration-1000">
+      {!currentUser && <div className="text-center mb-8 ">
         <h1 className="text-6xl md:text-8xl font-black text-slate-900 tracking-tighter leading-none mb-2 italic">
           PTG <span className="text-[#00b751]">2026</span>
         </h1>
