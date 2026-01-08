@@ -276,7 +276,7 @@ const DrawView: React.FC = () => {
 
           {!resultUser ? (
             <div className="flex flex-col items-center w-full">
-              <div className="relative w-full max-w-[400px] aspect-square flex items-center justify-center mb-12">
+              <div className="relative w-full max-w-[400px] aspect-square flex items-center justify-center mb-6">
                 <div className={`absolute inset-0 bg-indigo-500/10 blur-[100px] rounded-full transition-all duration-1000 ${drawing ? 'opacity-100 scale-150 bg-rose-500/20' : 'opacity-40'}`}></div>
 
                 {/* 3D Glass Sphere */}
