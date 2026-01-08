@@ -222,9 +222,9 @@ const DrawView: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-20 relative">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-18 relative">
       {/* Brand Header */}
-      <div className="text-center mb-12 animate-in fade-in slide-in-from-top-4 duration-1000">
+      <div className="text-center mb-8 animate-in fade-in slide-in-from-top-4 duration-1000">
         <h1 className="text-6xl md:text-8xl font-black text-slate-900 tracking-tighter leading-none mb-2 italic">
           PTG <span className="text-[#00b751]">2026</span>
         </h1>
@@ -331,7 +331,7 @@ const DrawView: React.FC = () => {
             </div>
           ) : (
             <div className="w-full max-w-xl bg-white p-3 rounded-[4rem] shadow-2xl animate-in zoom-in-90 fade-in duration-700">
-              <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[3.5rem] p-12 text-center relative overflow-hidden">
+              <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[3.5rem] p-4 text-center relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-full bg-indigo-500/5 blur-[80px] -z-10"></div>
 
                 <h2 className="text-[#00b751] font-black mb-10 uppercase tracking-[0.4em] text-xs animate-bounce">The Winner is</h2>
@@ -366,7 +366,7 @@ const DrawView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="mt-12 pt-8 border-t border-slate-200/50">
+                <div className="mt-4 pt-8 border-t border-slate-200/50">
                   <p className="text-slate-300 font-bold italic text-xs uppercase tracking-widest">Happy New Year 2026</p>
                 </div>
               </div>
