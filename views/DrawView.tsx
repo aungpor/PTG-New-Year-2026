@@ -21,6 +21,7 @@ const DrawView: React.FC = () => {
   const [eligibleParticipants, setEligibleParticipants] = useState<Participant[]>([]);
   
   const [drawing, setDrawing] = useState(false);
+  const [shufflingName, setShufflingName] = useState<{name: string, no: number} | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialSync, setInitialSync] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,68 +73,110 @@ const DrawView: React.FC = () => {
   };
 
   const handleDraw = async () => {
-    // 1. Double check current state
     if (!currentUser || drawing || eligibleParticipants.length === 0) return;
     
-    // 2. STRICT FILTER: Remove the user themselves from the potential winners pool
-    const validPool = eligibleParticipants.filter(p => p.EmpID !== currentUser.EmpID);
-    
-    if (validPool.length === 0) {
-      alert("ขออภัย ไม่เหลือผู้โชคดีท่านอื่นให้จับในขณะนี้ (คุณคือคนสุดท้ายที่เหลืออยู่)");
-      return;
-    }
-
     setDrawing(true);
+
+    // Filter valid pool (cannot draw self)
+    const getFreshValidPool = (list: Participant[]) => list.filter(p => p.EmpID !== currentUser.EmpID);
     
-    // Visual suspense delay (4 seconds for dramatic effect)
-    await new Promise(resolve => setTimeout(resolve, 4000));
-
-    try {
-      // 3. Select a random person from the VALID pool (doesn't include self)
-      const randomIndex = Math.floor(Math.random() * validPool.length);
-      const targetCandidate = validPool[randomIndex];
-
-      const success = await runTransaction(db, async (transaction) => {
-        const userRef = doc(db, COLLECTION_NAME, currentUser.id!);
-        const targetRef = doc(db, COLLECTION_NAME, targetCandidate.id!);
-        
-        const userSnap = await transaction.get(userRef);
-        const targetSnap = await transaction.get(targetRef);
-
-        if (!userSnap.exists() || !targetSnap.exists()) throw "Invalid data state";
-        
-        const uData = userSnap.data() as Participant;
-        const tData = targetSnap.data() as Participant;
-
-        if (uData.Status === 'Finished') throw "คุณได้ทำการจับฉลากไปแล้ว";
-        if (tData.Status !== 'Eligible') throw "สิทธิ์นี้ถูกจับไปแล้ว กรุณาลองใหม่";
-        // Logic check inside transaction too
-        if (tData.EmpID === uData.EmpID) throw "ไม่สามารถจับรายชื่อตัวเองได้";
-
-        transaction.update(targetRef, {
-          Status: 'Won',
-          WonBy: currentUser.EmpID,
-          WonAt: serverTimestamp()
+    // Start Shuffling Animation
+    const shuffleInterval = setInterval(() => {
+      const pool = getFreshValidPool(eligibleParticipants);
+      if (pool.length > 0) {
+        const randomPart = pool[Math.floor(Math.random() * pool.length)];
+        setShufflingName({ 
+          name: `${randomPart.FirstName} ${randomPart.LastName}`, 
+          no: randomPart.RunningNo 
         });
-
-        transaction.update(userRef, {
-          Status: 'Finished', 
-          DrawnResult: targetCandidate.EmpID
-        });
-
-        return { target: { ...tData, id: targetSnap.id } as Participant };
-      });
-
-      if (success) {
-        setResultUser(success.target);
-        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
       }
-    } catch (err: any) {
-      alert(err.toString());
-      window.location.reload();
-    } finally {
-      setDrawing(false);
+    }, 80);
+    
+    const startTime = Date.now();
+    const minAnimationTime = 4000;
+
+    // Retry loop for handling concurrency collisions
+    let successResult: Participant | null = null;
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    while (attempts < maxAttempts && !successResult) {
+      attempts++;
+      try {
+        const currentPool = getFreshValidPool(eligibleParticipants);
+        if (currentPool.length === 0) throw new Error("ไม่เหลือรายชื่อให้จับแล้ว");
+
+        const targetCandidate = currentPool[Math.floor(Math.random() * currentPool.length)];
+
+        const transactionResult = await runTransaction(db, async (transaction) => {
+          const userRef = doc(db, COLLECTION_NAME, currentUser.id!);
+          const targetRef = doc(db, COLLECTION_NAME, targetCandidate.id!);
+          
+          const userSnap = await transaction.get(userRef);
+          const targetSnap = await transaction.get(targetRef);
+
+          if (!userSnap.exists() || !targetSnap.exists()) throw "Invalid data state";
+          
+          const uData = userSnap.data() as Participant;
+          const tData = targetSnap.data() as Participant;
+
+          if (uData.Status === 'Finished') throw "คุณได้ทำการจับฉลากไปแล้ว";
+          // If collision: target was taken by someone else between our local state and transaction start
+          if (tData.Status !== 'Eligible') throw "COLLISION"; 
+          if (tData.EmpID === uData.EmpID) throw "ไม่สามารถจับรายชื่อตัวเองได้";
+
+          transaction.update(targetRef, {
+            Status: 'Won',
+            WonBy: currentUser.EmpID,
+            WonAt: serverTimestamp()
+          });
+
+          transaction.update(userRef, {
+            Status: 'Finished', 
+            DrawnResult: targetCandidate.EmpID
+          });
+
+          return { ...tData, id: targetSnap.id } as Participant;
+        });
+
+        successResult = transactionResult;
+      } catch (err: any) {
+        if (err === "COLLISION") {
+          console.warn(`Draw collision detected (Attempt ${attempts}). Retrying with new candidate...`);
+          // Brief pause before retry to let other transactions settle
+          await new Promise(r => setTimeout(r, 100));
+          continue;
+        }
+        // If not a collision, it's a real error (like user already finished)
+        clearInterval(shuffleInterval);
+        setShufflingName(null);
+        setDrawing(false);
+        alert(err.message || err.toString());
+        return;
+      }
     }
+
+    // Wait for the rest of the animation if needed
+    const elapsedTime = Date.now() - startTime;
+    if (elapsedTime < minAnimationTime) {
+      await new Promise(resolve => setTimeout(resolve, minAnimationTime - elapsedTime));
+    }
+
+    clearInterval(shuffleInterval);
+    setShufflingName(null);
+
+    if (successResult) {
+      setResultUser(successResult);
+      confetti({ 
+        particleCount: 200, 
+        spread: 80, 
+        origin: { y: 0.6 },
+        colors: ['#4f46e5', '#fbbf24', '#e11d48']
+      });
+    } else {
+      alert("ไม่สามารถจับฉลากได้เนื่องจากมีการใช้งานหนาแน่น กรุณาลองใหม่อีกครั้ง");
+    }
+    setDrawing(false);
   };
 
   const resetState = () => {
@@ -143,7 +186,6 @@ const DrawView: React.FC = () => {
     setError(null);
   };
 
-  // Generate consistent ball visual positions
   const ballVisuals = useMemo(() => {
     const types = ['gold', 'indigo', 'silver'];
     return eligibleParticipants.slice(0, 45).map((p, i) => ({
@@ -181,7 +223,6 @@ const DrawView: React.FC = () => {
       </div>
 
       {!currentUser ? (
-        /* Identity Verification */
         <div className="w-full max-w-md bg-white/70 backdrop-blur-xl p-10 rounded-[3rem] shadow-2xl border border-white animate-in zoom-in-95 duration-500">
           <div className="text-center mb-8">
             <h2 className="text-2xl font-black text-slate-900 mb-2">Welcome</h2>
@@ -206,9 +247,7 @@ const DrawView: React.FC = () => {
           </form>
         </div>
       ) : (
-        /* Draw Area */
         <div className="w-full max-w-4xl flex flex-col items-center">
-          {/* Active User Badge */}
           <div className="bg-white/80 backdrop-blur-md pl-2 pr-6 py-2 rounded-full border border-white shadow-lg mb-12 flex items-center gap-4 animate-in slide-in-from-bottom-4 duration-500">
             <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center text-white font-black shadow-inner">
               {currentUser.FirstName[0]}
@@ -222,18 +261,22 @@ const DrawView: React.FC = () => {
           </div>
 
           {!resultUser ? (
-            /* The Lucky Orb UI */
             <div className="flex flex-col items-center w-full">
               <div className="relative w-full max-w-[400px] aspect-square flex items-center justify-center mb-12">
-                {/* Glow Aura */}
                 <div className={`absolute inset-0 bg-indigo-500/10 blur-[100px] rounded-full transition-all duration-1000 ${drawing ? 'opacity-100 scale-150 bg-rose-500/20' : 'opacity-40'}`}></div>
                 
                 {/* 3D Glass Sphere */}
-                <div className={`relative w-80 h-80 lucky-orb z-10 overflow-hidden flex items-end justify-center pb-12 transition-all duration-500 ${drawing ? 'shaking scale-110' : 'animate-bounce-slow'}`}>
-                  {/* Reflection Highlights */}
+                <div className={`relative w-80 h-80 lucky-orb z-10 overflow-hidden flex items-center justify-center transition-all duration-500 ${drawing ? 'shaking scale-110' : 'animate-bounce-slow'}`}>
                   <div className="absolute top-[10%] left-[20%] w-[25%] h-[12%] bg-white/30 rounded-full blur-sm rotate-[-30deg]"></div>
                   
-                  {/* The Floating Spheres */}
+                  {/* Slot Machine Animation Overlay */}
+                  {drawing && shufflingName && (
+                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-indigo-900/40 backdrop-blur-[2px] animate-in fade-in duration-300">
+                        <div className="text-white font-black text-5xl mb-2 animate-pulse">#{shufflingName.no}</div>
+                        <div className="text-white/80 font-bold text-xs uppercase tracking-widest px-4 text-center">{shufflingName.name}</div>
+                    </div>
+                  )}
+
                   <div className="relative w-full h-full p-6 flex flex-wrap gap-2 items-end justify-center content-end">
                     {ballVisuals.map((b) => (
                       <div 
@@ -253,7 +296,6 @@ const DrawView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Draw Button */}
               <div className="text-center space-y-4">
                 <button
                   onClick={handleDraw}
@@ -269,38 +311,51 @@ const DrawView: React.FC = () => {
                 <p className="text-slate-400 font-bold uppercase tracking-[0.4em] text-[10px]">
                   {eligibleParticipants.length} Participants in the bowl
                 </p>
-                <div className="px-4 py-2 bg-slate-100 rounded-full text-[9px] font-bold text-slate-500 inline-block uppercase tracking-widest border border-slate-200">
-                  Strict "No Self-Draw" Filter Active
+                <div className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 rounded-full text-[9px] font-bold text-slate-500 uppercase tracking-widest border border-slate-200">
+                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+                  Collision Protection Active
                 </div>
               </div>
             </div>
           ) : (
-            /* Result Reveal Card */
             <div className="w-full max-w-xl bg-white p-3 rounded-[4rem] shadow-2xl animate-in zoom-in-90 fade-in duration-700">
               <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[3.5rem] p-12 text-center relative overflow-hidden">
-                {/* Celebrate Icon */}
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-3xl shadow-xl mb-8 border border-slate-100 rotate-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z" />
-                  </svg>
-                </div>
+                <div className="absolute top-0 left-0 w-full h-full bg-indigo-500/5 blur-[80px] -z-10"></div>
+                
+                <h2 className="text-indigo-600 font-black mb-10 uppercase tracking-[0.4em] text-xs animate-bounce">The Winner is</h2>
 
-                <h2 className="text-indigo-600 font-black mb-4 uppercase tracking-[0.3em] text-xs">Congratulations! You Found:</h2>
-                <div className="text-5xl md:text-7xl font-black text-slate-900 mb-6 leading-none tracking-tighter">
-                  {resultUser.FirstName} <br/> {resultUser.LastName}
+                <div className="flex justify-center mb-10 scale-125 md:scale-150 animate-in slide-in-from-top-10 duration-700 delay-300 fill-mode-both">
+                  <div className="relative group">
+                    <div className="absolute inset-0 bg-indigo-400 blur-2xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
+                    <div className="lucky-ball ball-gold w-28 h-28 text-5xl shadow-2xl relative border-[6px] border-white/80 ring-4 ring-gold-500/20">
+                      {resultUser.RunningNo}
+                    </div>
+                  </div>
                 </div>
                 
-                <div className="flex justify-center gap-3 mb-10">
-                  <div className="px-6 py-3 bg-white rounded-2xl shadow-sm text-slate-600 font-black text-sm border border-slate-100">
-                    ID: {resultUser.EmpID}
+                <div className="mt-14 mb-8 animate-in fade-in slide-in-from-bottom-5 duration-700 delay-500 fill-mode-both">
+                  <div className="text-4xl md:text-5xl font-black text-slate-900 mb-2 leading-tight tracking-tight">
+                    {resultUser.FirstName} {resultUser.LastName}
                   </div>
-                  <div className="px-6 py-3 bg-white rounded-2xl shadow-sm text-indigo-600 font-black text-sm border border-slate-100">
-                    #{resultUser.RunningNo}
-                  </div>
+                  {resultUser.Nickname && (
+                    <div className="text-2xl md:text-3xl font-black text-indigo-600 mt-2 bg-indigo-50 inline-block px-4 py-1 rounded-2xl">
+                      ({resultUser.Nickname})
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex flex-col items-center gap-3 mt-10 animate-in fade-in duration-1000 delay-700 fill-mode-both">
+                   <div className="px-6 py-2 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center gap-3">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee ID</span>
+                      <span className="text-slate-800 font-black tracking-widest">{resultUser.EmpID}</span>
+                   </div>
+                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">
+                      {resultUser.Module || 'Participant'}
+                   </div>
                 </div>
 
-                <div className="pt-8 border-t border-slate-200/50">
-                  <p className="text-slate-400 font-bold italic text-sm italic">Wishing you a prosperous 2026!</p>
+                <div className="mt-12 pt-8 border-t border-slate-200/50">
+                  <p className="text-slate-300 font-bold italic text-xs uppercase tracking-widest">Happy New Year 2026</p>
                 </div>
               </div>
             </div>
