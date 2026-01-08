@@ -262,7 +262,7 @@ const DrawView: React.FC = () => {
         </div>
       ) : (
         <div className="w-full max-w-4xl flex flex-col items-center m-auto gap-6">
-          <div className="bg-white/80 backdrop-blur-md pl-2 pr-6 py-2 rounded-full border border-white shadow-lg mb-6 flex items-center gap-4 animate-in slide-in-from-bottom-4 duration-500">
+          <div className="bg-white/80 backdrop-blur-md pl-2 pr-6 py-2 rounded-full border border-white shadow-lg mb-0 lg:mb-2 flex items-center gap-4 animate-in slide-in-from-bottom-4 duration-500">
             <div className="w-12 h-12 bg-[#00b751] rounded-full flex items-center justify-center text-white font-black shadow-inner">
               {currentUser.FirstName[0]}
             </div>
