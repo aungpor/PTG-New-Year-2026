@@ -177,6 +177,7 @@ const SettingView: React.FC = () => {
           const firstName = cols[2];
           const lastName = cols[3];
           const nickname = cols[4] || '';
+          const module = cols[5] || '';
 
           if (empId && firstName && lastName) {
             currentNo++;
@@ -186,9 +187,12 @@ const SettingView: React.FC = () => {
               FirstName: firstName,
               LastName: lastName,
               Nickname: nickname,
-              Module: 'Imported', // Default category
+              Module: module,
               RunningNo: currentNo,
               Status: 'Eligible',
+              WonBy: null,
+              DrawnResult: null,
+              WonAt: null,
               CreatedAt: serverTimestamp()
             });
             processed++;

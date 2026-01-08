@@ -69,6 +69,9 @@ const AdminView: React.FC = () => {
         EmpID: formData.EmpID.trim(),
         RunningNo: runNo, 
         Status: 'Eligible', 
+        WonBy: null,
+        DrawnResult: null,
+        WonAt: null,
         CreatedAt: serverTimestamp() 
       });
       
