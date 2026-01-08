@@ -247,7 +247,7 @@ const DrawView: React.FC = () => {
               required
               value={inputEmpId}
               onChange={e => setInputEmpId(e.target.value)}
-              placeholder="รหัสพนักงาน (EMP ID)"
+              placeholder="รหัสพนักงาน"
               className="w-full px-8 py-6 bg-white border-2 border-slate-100 rounded-[2rem] text-2xl font-black focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all text-center tracking-widest uppercase"
             />
             {error && <div className="text-rose-500 text-center font-black text-sm animate-pulse">{error}</div>}
