@@ -1,11 +1,11 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { 
-  collection, 
-  onSnapshot, 
-  query, 
-  runTransaction, 
-  doc, 
+import {
+  collection,
+  onSnapshot,
+  query,
+  runTransaction,
+  doc,
   serverTimestamp,
   where,
   getDocs,
@@ -19,16 +19,19 @@ const DrawView: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<Participant | null>(null);
   const [resultUser, setResultUser] = useState<Participant | null>(null);
   const [eligibleParticipants, setEligibleParticipants] = useState<Participant[]>([]);
-  
+
   const [drawing, setDrawing] = useState(false);
-  const [shufflingName, setShufflingName] = useState<{name: string, no: number} | null>(null);
+  const [shufflingName, setShufflingName] = useState<{ name: string, no: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [initialSync, setInitialSync] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Sync eligible pool
   useEffect(() => {
-    const q = query(collection(db, COLLECTION_NAME), where('Status', '==', 'Eligible'));
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      where('WonBy', '==', null)
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Participant));
       setEligibleParticipants(list);
@@ -56,7 +59,7 @@ const DrawView: React.FC = () => {
       } else {
         const userData = { id: snap.docs[0].id, ...snap.docs[0].data() } as Participant;
         setCurrentUser(userData);
-        
+
         if (userData.Status === 'Finished' && userData.DrawnResult) {
           const resQ = query(collection(db, COLLECTION_NAME), where('EmpID', '==', userData.DrawnResult), limit(1));
           const resSnap = await getDocs(resQ);
@@ -74,24 +77,28 @@ const DrawView: React.FC = () => {
 
   const handleDraw = async () => {
     if (!currentUser || drawing || eligibleParticipants.length === 0) return;
-    
+
     setDrawing(true);
 
     // Filter valid pool (cannot draw self)
-    const getFreshValidPool = (list: Participant[]) => list.filter(p => p.EmpID !== currentUser.EmpID);
-    
+    const getFreshValidPool = (list: Participant[]) =>
+      list.filter(p =>
+        p.EmpID !== currentUser.EmpID && p.WonBy == null
+      );
+
+
     // Start Shuffling Animation
     const shuffleInterval = setInterval(() => {
       const pool = getFreshValidPool(eligibleParticipants);
       if (pool.length > 0) {
         const randomPart = pool[Math.floor(Math.random() * pool.length)];
-        setShufflingName({ 
-          name: `${randomPart.FirstName} ${randomPart.LastName}`, 
-          no: randomPart.RunningNo 
+        setShufflingName({
+          name: `${randomPart.FirstName} ${randomPart.LastName}`,
+          no: randomPart.RunningNo
         });
       }
     }, 80);
-    
+
     const startTime = Date.now();
     const minAnimationTime = 4000;
 
@@ -111,33 +118,39 @@ const DrawView: React.FC = () => {
         const transactionResult = await runTransaction(db, async (transaction) => {
           const userRef = doc(db, COLLECTION_NAME, currentUser.id!);
           const targetRef = doc(db, COLLECTION_NAME, targetCandidate.id!);
-          
+
           const userSnap = await transaction.get(userRef);
           const targetSnap = await transaction.get(targetRef);
 
-          if (!userSnap.exists() || !targetSnap.exists()) throw "Invalid data state";
-          
+          if (!userSnap.exists() || !targetSnap.exists())
+            throw new Error("Invalid data state");
+
           const uData = userSnap.data() as Participant;
           const tData = targetSnap.data() as Participant;
 
-          if (uData.Status === 'Finished') throw "คุณได้ทำการจับฉลากไปแล้ว";
-          // If collision: target was taken by someone else between our local state and transaction start
-          if (tData.Status !== 'Eligible') throw "COLLISION"; 
-          if (tData.EmpID === uData.EmpID) throw "ไม่สามารถจับรายชื่อตัวเองได้";
+          if (uData.Status === 'Finished')
+            throw new Error("คุณได้ทำการจับฉลากไปแล้ว");
+
+          // ✅ collision check ที่ถูกต้อง
+          if (tData.WonBy != null)
+            throw "COLLISION";
+
+          if (tData.EmpID === uData.EmpID)
+            throw new Error("ไม่สามารถจับรายชื่อตัวเองได้");
 
           transaction.update(targetRef, {
-            Status: 'Won',
             WonBy: currentUser.EmpID,
             WonAt: serverTimestamp()
           });
 
           transaction.update(userRef, {
-            Status: 'Finished', 
-            DrawnResult: targetCandidate.EmpID
+            Status: 'Finished',
+            DrawnResult: tData.EmpID
           });
 
           return { ...tData, id: targetSnap.id } as Participant;
         });
+
 
         successResult = transactionResult;
       } catch (err: any) {
@@ -167,9 +180,9 @@ const DrawView: React.FC = () => {
 
     if (successResult) {
       setResultUser(successResult);
-      confetti({ 
-        particleCount: 200, 
-        spread: 80, 
+      confetti({
+        particleCount: 200,
+        spread: 80,
         origin: { y: 0.6 },
         colors: ['#4f46e5', '#fbbf24', '#e11d48']
       });
@@ -229,7 +242,7 @@ const DrawView: React.FC = () => {
             <p className="text-slate-500 text-sm font-medium">ระบุรหัสพนักงานเพื่อร่วมจับฉลาก</p>
           </div>
           <form onSubmit={handleVerifyIdentity} className="space-y-6">
-            <input 
+            <input
               type="text"
               required
               value={inputEmpId}
@@ -238,7 +251,7 @@ const DrawView: React.FC = () => {
               className="w-full px-8 py-6 bg-white border-2 border-slate-100 rounded-[2rem] text-2xl font-black focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all text-center tracking-widest uppercase"
             />
             {error && <div className="text-rose-500 text-center font-black text-sm animate-pulse">{error}</div>}
-            <button 
+            <button
               disabled={loading}
               className="w-full py-6 bg-slate-900 text-white font-black rounded-[2rem] shadow-2xl hover:bg-indigo-600 hover:-translate-y-1 active:translate-y-0 transition-all text-lg"
             >
@@ -264,25 +277,25 @@ const DrawView: React.FC = () => {
             <div className="flex flex-col items-center w-full">
               <div className="relative w-full max-w-[400px] aspect-square flex items-center justify-center mb-12">
                 <div className={`absolute inset-0 bg-indigo-500/10 blur-[100px] rounded-full transition-all duration-1000 ${drawing ? 'opacity-100 scale-150 bg-rose-500/20' : 'opacity-40'}`}></div>
-                
+
                 {/* 3D Glass Sphere */}
                 <div className={`relative w-80 h-80 lucky-orb z-10 overflow-hidden flex items-center justify-center transition-all duration-500 ${drawing ? 'shaking scale-110' : 'animate-bounce-slow'}`}>
                   <div className="absolute top-[10%] left-[20%] w-[25%] h-[12%] bg-white/30 rounded-full blur-sm rotate-[-30deg]"></div>
-                  
+
                   {/* Slot Machine Animation Overlay */}
                   {drawing && shufflingName && (
                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-indigo-900/40 backdrop-blur-[2px] animate-in fade-in duration-300">
-                        <div className="text-white font-black text-5xl mb-2 animate-pulse">#{shufflingName.no}</div>
-                        <div className="text-white/80 font-bold text-xs uppercase tracking-widest px-4 text-center">{shufflingName.name}</div>
+                      <div className="text-white font-black text-5xl mb-2 animate-pulse">#{shufflingName.no}</div>
+                      <div className="text-white/80 font-bold text-xs uppercase tracking-widest px-4 text-center">{shufflingName.name}</div>
                     </div>
                   )}
 
                   <div className="relative w-full h-full p-6 flex flex-wrap gap-2 items-end justify-center content-end">
                     {ballVisuals.map((b) => (
-                      <div 
+                      <div
                         key={b.id}
                         className={`lucky-ball ball-${b.type} w-10 h-10 text-[10px] shadow-lg ${drawing ? 'shaking' : ''}`}
-                        style={{ 
+                        style={{
                           left: drawing ? `${Math.random() * 80 + 5}%` : `${b.x}%`,
                           top: drawing ? `${Math.random() * 80 + 5}%` : `${b.y}%`,
                           transform: `scale(${b.scale}) rotate(${drawing ? Math.random() * 360 : b.rotation}deg)`,
@@ -300,14 +313,13 @@ const DrawView: React.FC = () => {
                 <button
                   onClick={handleDraw}
                   disabled={drawing || eligibleParticipants.length === 0}
-                  className={`group relative px-16 py-8 rounded-[3rem] font-black text-4xl tracking-tighter transition-all shadow-2xl ${
-                    drawing ? 'bg-slate-200 text-slate-400 scale-95 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-indigo-600 hover:-translate-y-2 active:scale-95'
-                  }`}
+                  className={`group relative px-16 py-8 rounded-[3rem] font-black text-4xl tracking-tighter transition-all shadow-2xl ${drawing ? 'bg-slate-200 text-slate-400 scale-95 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-indigo-600 hover:-translate-y-2 active:scale-95'
+                    }`}
                 >
                   <span className="relative z-10">{drawing ? 'MIXING...' : 'DRAW NOW'}</span>
                   {!drawing && <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-rose-600 opacity-0 group-hover:opacity-100 transition-opacity rounded-[3rem]"></div>}
                 </button>
-                
+
                 <p className="text-slate-400 font-bold uppercase tracking-[0.4em] text-[10px]">
                   {eligibleParticipants.length} Participants in the bowl
                 </p>
@@ -321,7 +333,7 @@ const DrawView: React.FC = () => {
             <div className="w-full max-w-xl bg-white p-3 rounded-[4rem] shadow-2xl animate-in zoom-in-90 fade-in duration-700">
               <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[3.5rem] p-12 text-center relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-full bg-indigo-500/5 blur-[80px] -z-10"></div>
-                
+
                 <h2 className="text-indigo-600 font-black mb-10 uppercase tracking-[0.4em] text-xs animate-bounce">The Winner is</h2>
 
                 <div className="flex justify-center mb-10 scale-125 md:scale-150 animate-in slide-in-from-top-10 duration-700 delay-300 fill-mode-both">
@@ -332,7 +344,7 @@ const DrawView: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="mt-14 mb-8 animate-in fade-in slide-in-from-bottom-5 duration-700 delay-500 fill-mode-both">
                   <div className="text-4xl md:text-5xl font-black text-slate-900 mb-2 leading-tight tracking-tight">
                     {resultUser.FirstName} {resultUser.LastName}
@@ -343,15 +355,15 @@ const DrawView: React.FC = () => {
                     </div>
                   )}
                 </div>
-                
+
                 <div className="flex flex-col items-center gap-3 mt-10 animate-in fade-in duration-1000 delay-700 fill-mode-both">
-                   <div className="px-6 py-2 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center gap-3">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee ID</span>
-                      <span className="text-slate-800 font-black tracking-widest">{resultUser.EmpID}</span>
-                   </div>
-                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">
-                      {resultUser.Module || 'Participant'}
-                   </div>
+                  <div className="px-6 py-2 bg-white rounded-xl shadow-sm border border-slate-100 flex items-center gap-3">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee ID</span>
+                    <span className="text-slate-800 font-black tracking-widest">{resultUser.EmpID}</span>
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">
+                    {resultUser.Module || 'Participant'}
+                  </div>
                 </div>
 
                 <div className="mt-12 pt-8 border-t border-slate-200/50">
