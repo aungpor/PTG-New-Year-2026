@@ -16,7 +16,7 @@ const App: React.FC = () => {
 const AppContent: React.FC = () => {
   const location = useLocation();
   return (
-    <div className="h-screen bg-slate-50 overflow-hidden">
+    <div className="h-dvh bg-slate-50 overflow-hidden">
       {(location.pathname === '/admin' || location.pathname === '/setting') && <Navigation />}
       <main className={(location.pathname === '/admin' || location.pathname === '/setting') ? 'pb-24' : ''}>
         <Routes>
