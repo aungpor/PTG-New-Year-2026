@@ -21,6 +21,7 @@ export interface Participant {
   EmpID: string;
   FirstName: string;
   LastName: string;
+  Nickname?: string; // New field from CSV
   Module: string;
   RunningNo: number;
   Status: 'Eligible' | 'Won' | 'Finished'; // Eligible: Available to be drawn, Won: Been drawn by someone, Finished: Has participated and drawn someone

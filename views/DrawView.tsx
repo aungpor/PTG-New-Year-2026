@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { 
   collection, 
   onSnapshot, 
@@ -25,7 +25,7 @@ const DrawView: React.FC = () => {
   const [initialSync, setInitialSync] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Sync eligible pool for animation and count
+  // Sync eligible pool
   useEffect(() => {
     const q = query(collection(db, COLLECTION_NAME), where('Status', '==', 'Eligible'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -34,7 +34,7 @@ const DrawView: React.FC = () => {
       setInitialSync(false);
     }, (err: any) => {
       console.error(err);
-      setError("Database Error: Check Permissions");
+      setError("Database Error");
     });
     return () => unsubscribe();
   }, []);
@@ -46,7 +46,7 @@ const DrawView: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const q = query(collection(db, COLLECTION_NAME), where('EmpID', '==', inputEmpId), limit(1));
+      const q = query(collection(db, COLLECTION_NAME), where('EmpID', '==', inputEmpId.trim()), limit(1));
       const snap = await getDocs(q);
 
       if (snap.empty) {
@@ -56,7 +56,6 @@ const DrawView: React.FC = () => {
         const userData = { id: snap.docs[0].id, ...snap.docs[0].data() } as Participant;
         setCurrentUser(userData);
         
-        // If user already finished, find who they drew
         if (userData.Status === 'Finished' && userData.DrawnResult) {
           const resQ = query(collection(db, COLLECTION_NAME), where('EmpID', '==', userData.DrawnResult), limit(1));
           const resSnap = await getDocs(resQ);
@@ -66,30 +65,31 @@ const DrawView: React.FC = () => {
         }
       }
     } catch (err) {
-      setError("เกิดข้อผิดพลาดในการตรวจสอบข้อมูล");
+      setError("Error checking identity");
     } finally {
       setLoading(false);
     }
   };
 
-  const triggerConfetti = () => {
-    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
-  };
-
   const handleDraw = async () => {
+    // 1. Double check current state
     if (!currentUser || drawing || eligibleParticipants.length === 0) return;
     
-    // Safety: Don't let someone draw themselves if they are the only one left
+    // 2. STRICT FILTER: Remove the user themselves from the potential winners pool
     const validPool = eligibleParticipants.filter(p => p.EmpID !== currentUser.EmpID);
+    
     if (validPool.length === 0) {
-      alert("ไม่เหลือผู้โชคดีคนอื่นให้จับแล้ว (หรือคุณคือคนสุดท้ายที่เหลืออยู่)");
+      alert("ขออภัย ไม่เหลือผู้โชคดีท่านอื่นให้จับในขณะนี้ (คุณคือคนสุดท้ายที่เหลืออยู่)");
       return;
     }
 
     setDrawing(true);
-    await new Promise(resolve => setTimeout(resolve, 3000)); // Animation delay
+    
+    // Visual suspense delay (4 seconds for dramatic effect)
+    await new Promise(resolve => setTimeout(resolve, 4000));
 
     try {
+      // 3. Select a random person from the VALID pool (doesn't include self)
       const randomIndex = Math.floor(Math.random() * validPool.length);
       const targetCandidate = validPool[randomIndex];
 
@@ -100,23 +100,22 @@ const DrawView: React.FC = () => {
         const userSnap = await transaction.get(userRef);
         const targetSnap = await transaction.get(targetRef);
 
-        if (!userSnap.exists() || !targetSnap.exists()) throw "Data missing";
+        if (!userSnap.exists() || !targetSnap.exists()) throw "Invalid data state";
         
         const uData = userSnap.data() as Participant;
         const tData = targetSnap.data() as Participant;
 
         if (uData.Status === 'Finished') throw "คุณได้ทำการจับฉลากไปแล้ว";
-        if (tData.Status !== 'Eligible') throw "เป้าหมายถูกจับไปแล้ว กรุณาลองใหม่";
+        if (tData.Status !== 'Eligible') throw "สิทธิ์นี้ถูกจับไปแล้ว กรุณาลองใหม่";
+        // Logic check inside transaction too
+        if (tData.EmpID === uData.EmpID) throw "ไม่สามารถจับรายชื่อตัวเองได้";
 
-        // Update Target: Marked as Won by User
         transaction.update(targetRef, {
           Status: 'Won',
           WonBy: currentUser.EmpID,
           WonAt: serverTimestamp()
         });
 
-        // Update User: Marked as Finished, record DrawnResult
-        // Fixed: Removed duplicate 'Status' property
         transaction.update(userRef, {
           Status: 'Finished', 
           DrawnResult: targetCandidate.EmpID
@@ -127,7 +126,7 @@ const DrawView: React.FC = () => {
 
       if (success) {
         setResultUser(success.target);
-        triggerConfetti();
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
       }
     } catch (err: any) {
       alert(err.toString());
@@ -144,107 +143,165 @@ const DrawView: React.FC = () => {
     setError(null);
   };
 
+  // Generate consistent ball visual positions
+  const ballVisuals = useMemo(() => {
+    const types = ['gold', 'indigo', 'silver'];
+    return eligibleParticipants.slice(0, 45).map((p, i) => ({
+      id: p.id,
+      no: p.RunningNo,
+      type: types[i % types.length],
+      x: 15 + Math.random() * 70,
+      y: 40 + Math.random() * 50,
+      scale: 0.8 + Math.random() * 0.4,
+      rotation: Math.random() * 360
+    }));
+  }, [eligibleParticipants.length]);
+
   if (initialSync) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+        <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Syncing Registry...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-4 py-20 bg-gradient-to-br from-indigo-50 via-white to-rose-50">
-      <div className="text-center mb-10">
-        <h1 className="text-5xl md:text-7xl font-black text-indigo-950 mb-4 tracking-tighter uppercase italic">PTG New Year 2026</h1>
-        <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-sm">Lucky Draw System</p>
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-20 relative">
+      {/* Brand Header */}
+      <div className="text-center mb-12 animate-in fade-in slide-in-from-top-4 duration-1000">
+        <h1 className="text-6xl md:text-8xl font-black text-slate-900 tracking-tighter leading-none mb-2 italic">
+          PTG <span className="text-indigo-600">2026</span>
+        </h1>
+        <div className="flex items-center justify-center gap-4">
+          <div className="h-px w-10 bg-slate-300"></div>
+          <p className="text-slate-400 font-black uppercase tracking-[0.4em] text-[10px] md:text-xs">The Grand Lucky Draw</p>
+          <div className="h-px w-10 bg-slate-300"></div>
+        </div>
       </div>
 
       {!currentUser ? (
-        /* Step 1: Login / Identity Check */
-        <div className="w-full max-w-md bg-white p-10 rounded-[40px] shadow-2xl border border-white/50 animate-in fade-in slide-in-from-bottom-10 duration-700">
-          <h2 className="text-2xl font-black text-slate-900 mb-6 text-center">ระบุรหัสพนักงาน</h2>
+        /* Identity Verification */
+        <div className="w-full max-w-md bg-white/70 backdrop-blur-xl p-10 rounded-[3rem] shadow-2xl border border-white animate-in zoom-in-95 duration-500">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-black text-slate-900 mb-2">Welcome</h2>
+            <p className="text-slate-500 text-sm font-medium">ระบุรหัสพนักงานเพื่อร่วมจับฉลาก</p>
+          </div>
           <form onSubmit={handleVerifyIdentity} className="space-y-6">
             <input 
               type="text"
               required
               value={inputEmpId}
               onChange={e => setInputEmpId(e.target.value)}
-              placeholder="รหัสพนักงาน (Emp ID)"
-              className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-3xl text-xl font-bold focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all text-center"
+              placeholder="รหัสพนักงาน (EMP ID)"
+              className="w-full px-8 py-6 bg-white border-2 border-slate-100 rounded-[2rem] text-2xl font-black focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all text-center tracking-widest uppercase"
             />
-            {error && <div className="text-red-500 text-center font-bold animate-bounce">{error}</div>}
+            {error && <div className="text-rose-500 text-center font-black text-sm animate-pulse">{error}</div>}
             <button 
               disabled={loading}
-              className="w-full py-5 bg-indigo-600 text-white font-black rounded-3xl shadow-xl shadow-indigo-200 hover:bg-indigo-700 hover:-translate-y-1 active:translate-y-0 transition-all text-lg"
+              className="w-full py-6 bg-slate-900 text-white font-black rounded-[2rem] shadow-2xl hover:bg-indigo-600 hover:-translate-y-1 active:translate-y-0 transition-all text-lg"
             >
-              {loading ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบจับฉลาก'}
+              {loading ? 'CHECKING...' : 'เข้าสู่ห้องจับฉลาก'}
             </button>
           </form>
         </div>
       ) : (
-        /* Step 2: Draw or Result */
-        <div className="flex flex-col items-center w-full max-w-2xl">
-          <div className="bg-white/60 backdrop-blur-md px-6 py-3 rounded-full border border-white/50 mb-8 flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-black text-sm">
+        /* Draw Area */
+        <div className="w-full max-w-4xl flex flex-col items-center">
+          {/* Active User Badge */}
+          <div className="bg-white/80 backdrop-blur-md pl-2 pr-6 py-2 rounded-full border border-white shadow-lg mb-12 flex items-center gap-4 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center text-white font-black shadow-inner">
               {currentUser.FirstName[0]}
             </div>
-            <div className="text-slate-900 font-bold">
-              {currentUser.FirstName} {currentUser.LastName} <span className="text-indigo-600 ml-2">({currentUser.EmpID})</span>
+            <div>
+              <div className="text-slate-900 font-black text-sm leading-none">{currentUser.FirstName} {currentUser.LastName}</div>
+              <div className="text-slate-400 font-bold text-[10px] uppercase tracking-wider">{currentUser.EmpID}</div>
             </div>
-            <button onClick={resetState} className="ml-4 text-xs font-black text-slate-400 hover:text-red-500 uppercase">ออกจากระบบ</button>
+            <div className="w-px h-6 bg-slate-200 ml-2"></div>
+            <button onClick={resetState} className="text-[10px] font-black text-slate-400 hover:text-rose-500 transition-colors uppercase">Logout</button>
           </div>
 
           {!resultUser ? (
-            /* Drawing State */
-            <div className="flex flex-col items-center">
-              <div className="relative w-full aspect-square flex items-center justify-center mb-10">
-                <div className={`relative w-72 h-80 glass-jar rounded-t-[100px] rounded-b-[40px] flex items-end justify-center pb-8 overflow-hidden transition-all duration-700 ${drawing ? 'scale-110 rotate-12' : 'animate-float'}`}>
-                  <div className="absolute top-4 left-1/4 w-1/2 h-full bg-gradient-to-r from-white/20 to-transparent skew-x-12"></div>
-                  <div className="relative w-full h-full p-8 flex flex-wrap gap-2 items-end justify-center content-end">
-                    {eligibleParticipants.slice(0, 30).map((p, i) => (
+            /* The Lucky Orb UI */
+            <div className="flex flex-col items-center w-full">
+              <div className="relative w-full max-w-[400px] aspect-square flex items-center justify-center mb-12">
+                {/* Glow Aura */}
+                <div className={`absolute inset-0 bg-indigo-500/10 blur-[100px] rounded-full transition-all duration-1000 ${drawing ? 'opacity-100 scale-150 bg-rose-500/20' : 'opacity-40'}`}></div>
+                
+                {/* 3D Glass Sphere */}
+                <div className={`relative w-80 h-80 lucky-orb z-10 overflow-hidden flex items-end justify-center pb-12 transition-all duration-500 ${drawing ? 'shaking scale-110' : 'animate-bounce-slow'}`}>
+                  {/* Reflection Highlights */}
+                  <div className="absolute top-[10%] left-[20%] w-[25%] h-[12%] bg-white/30 rounded-full blur-sm rotate-[-30deg]"></div>
+                  
+                  {/* The Floating Spheres */}
+                  <div className="relative w-full h-full p-6 flex flex-wrap gap-2 items-end justify-center content-end">
+                    {ballVisuals.map((b) => (
                       <div 
-                        key={p.id}
-                        className={`w-10 h-6 bg-white border border-indigo-100 rounded shadow-sm text-[8px] flex items-center justify-center font-bold text-indigo-800 ${drawing ? 'animate-bounce' : ''}`}
-                        style={{ animationDelay: `${i * 0.05}s` }}
+                        key={b.id}
+                        className={`lucky-ball ball-${b.type} w-10 h-10 text-[10px] shadow-lg ${drawing ? 'shaking' : ''}`}
+                        style={{ 
+                          left: drawing ? `${Math.random() * 80 + 5}%` : `${b.x}%`,
+                          top: drawing ? `${Math.random() * 80 + 5}%` : `${b.y}%`,
+                          transform: `scale(${b.scale}) rotate(${drawing ? Math.random() * 360 : b.rotation}deg)`,
+                          transition: drawing ? 'all 0.1s linear' : 'all 2s ease-in-out'
+                        }}
                       >
-                        {p.RunningNo}
+                        {b.no}
                       </div>
                     ))}
                   </div>
                 </div>
-                <div className="absolute -z-10 w-96 h-96 bg-indigo-400/20 blur-[120px] rounded-full"></div>
               </div>
 
-              <button
-                onClick={handleDraw}
-                disabled={drawing || eligibleParticipants.length === 0}
-                className={`group relative w-full max-w-sm py-6 px-10 rounded-[2.5rem] font-black text-3xl transition-all shadow-2xl overflow-hidden ${
-                  drawing ? 'bg-slate-400 text-white cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:-translate-y-2'
-                }`}
-              >
-                <span className="relative z-10">{drawing ? 'กำลังเขย่าฉลาก...' : 'กดเพื่อเริ่มจับฉลาก'}</span>
-                {!drawing && <div className="absolute inset-0 bg-gradient-to-r from-indigo-400 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>}
-              </button>
-              <p className="mt-6 text-slate-400 font-bold uppercase tracking-widest text-xs">เหลือผู้โชคดี {eligibleParticipants.length} ท่านในกล่อง</p>
+              {/* Draw Button */}
+              <div className="text-center space-y-4">
+                <button
+                  onClick={handleDraw}
+                  disabled={drawing || eligibleParticipants.length === 0}
+                  className={`group relative px-16 py-8 rounded-[3rem] font-black text-4xl tracking-tighter transition-all shadow-2xl ${
+                    drawing ? 'bg-slate-200 text-slate-400 scale-95 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-indigo-600 hover:-translate-y-2 active:scale-95'
+                  }`}
+                >
+                  <span className="relative z-10">{drawing ? 'MIXING...' : 'DRAW NOW'}</span>
+                  {!drawing && <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-rose-600 opacity-0 group-hover:opacity-100 transition-opacity rounded-[3rem]"></div>}
+                </button>
+                
+                <p className="text-slate-400 font-bold uppercase tracking-[0.4em] text-[10px]">
+                  {eligibleParticipants.length} Participants in the bowl
+                </p>
+                <div className="px-4 py-2 bg-slate-100 rounded-full text-[9px] font-bold text-slate-500 inline-block uppercase tracking-widest border border-slate-200">
+                  Strict "No Self-Draw" Filter Active
+                </div>
+              </div>
             </div>
           ) : (
-            /* Result State */
-            <div className="w-full bg-white p-12 rounded-[50px] shadow-2xl border border-indigo-50 text-center animate-in zoom-in fade-in duration-500">
-              <div className="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-                </svg>
-              </div>
-              <h2 className="text-indigo-600 font-black mb-2 uppercase tracking-widest">ยินดีด้วย! คุณจับฉลากได้</h2>
-              <div className="text-5xl font-black text-slate-900 mb-6 leading-tight">
-                {resultUser.FirstName} {resultUser.LastName}
-              </div>
-              <div className="flex flex-wrap justify-center gap-3 mb-10">
-                <span className="px-6 py-3 bg-slate-50 rounded-2xl text-slate-600 font-black">รหัส: {resultUser.EmpID}</span>
-                <span className="px-6 py-3 bg-indigo-50 rounded-2xl text-indigo-600 font-black">แผนก: {resultUser.Module || 'ไม่ระบุ'}</span>
-              </div>
-              <div className="pt-8 border-t border-slate-50">
-                <p className="text-slate-400 font-medium italic">ขอให้มีความสุขในเทศกาลปีใหม่!</p>
+            /* Result Reveal Card */
+            <div className="w-full max-w-xl bg-white p-3 rounded-[4rem] shadow-2xl animate-in zoom-in-90 fade-in duration-700">
+              <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-[3.5rem] p-12 text-center relative overflow-hidden">
+                {/* Celebrate Icon */}
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-3xl shadow-xl mb-8 border border-slate-100 rotate-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-7.714 2.143L11 21l-2.286-6.857L1 12l7.714-2.143L11 3z" />
+                  </svg>
+                </div>
+
+                <h2 className="text-indigo-600 font-black mb-4 uppercase tracking-[0.3em] text-xs">Congratulations! You Found:</h2>
+                <div className="text-5xl md:text-7xl font-black text-slate-900 mb-6 leading-none tracking-tighter">
+                  {resultUser.FirstName} <br/> {resultUser.LastName}
+                </div>
+                
+                <div className="flex justify-center gap-3 mb-10">
+                  <div className="px-6 py-3 bg-white rounded-2xl shadow-sm text-slate-600 font-black text-sm border border-slate-100">
+                    ID: {resultUser.EmpID}
+                  </div>
+                  <div className="px-6 py-3 bg-white rounded-2xl shadow-sm text-indigo-600 font-black text-sm border border-slate-100">
+                    #{resultUser.RunningNo}
+                  </div>
+                </div>
+
+                <div className="pt-8 border-t border-slate-200/50">
+                  <p className="text-slate-400 font-bold italic text-sm italic">Wishing you a prosperous 2026!</p>
+                </div>
               </div>
             </div>
           )}

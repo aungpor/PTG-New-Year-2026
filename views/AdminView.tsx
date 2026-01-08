@@ -17,7 +17,7 @@ import { db, COLLECTION_NAME, META_COLLECTION, COUNTER_DOC, Participant } from '
 
 const AdminView: React.FC = () => {
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [formData, setFormData] = useState({ EmpID: '', FirstName: '', LastName: '', Module: '' });
+  const [formData, setFormData] = useState({ EmpID: '', FirstName: '', LastName: '', Nickname: '', Module: '' });
   const [autoRunning, setAutoRunning] = useState(true);
   const [manualNo, setManualNo] = useState<number>(1);
   const [loading, setLoading] = useState(false);
@@ -72,7 +72,7 @@ const AdminView: React.FC = () => {
         CreatedAt: serverTimestamp() 
       });
       
-      setFormData({ EmpID: '', FirstName: '', LastName: '', Module: '' });
+      setFormData({ EmpID: '', FirstName: '', LastName: '', Nickname: '', Module: '' });
       if (!autoRunning) setManualNo(prev => prev + 1);
     } catch (error) {
       console.error(error);
@@ -140,6 +140,7 @@ const AdminView: React.FC = () => {
               </div>
               <input type="text" required value={formData.FirstName} onChange={e => setFormData({...formData, FirstName: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border-0 rounded-2xl font-bold" placeholder="ชื่อ" />
               <input type="text" required value={formData.LastName} onChange={e => setFormData({...formData, LastName: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border-0 rounded-2xl font-bold" placeholder="นามสกุล" />
+              <input type="text" value={formData.Nickname} onChange={e => setFormData({...formData, Nickname: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border-0 rounded-2xl font-bold" placeholder="ชื่อเล่น" />
               <input type="text" value={formData.Module} onChange={e => setFormData({...formData, Module: e.target.value})} className="w-full px-5 py-4 bg-slate-50 border-0 rounded-2xl font-bold" placeholder="แผนก" />
               
               <div className="py-4 border-t border-slate-50">
@@ -181,7 +182,7 @@ const AdminView: React.FC = () => {
                     <tr key={p.id} className="hover:bg-indigo-50/30 transition-colors">
                       <td className="px-6 py-5 font-black text-indigo-600">#{p.RunningNo}</td>
                       <td className="px-6 py-5">
-                        <div className="font-black text-slate-900">{p.FirstName} {p.LastName}</div>
+                        <div className="font-black text-slate-900">{p.FirstName} {p.LastName} {p.Nickname ? `(${p.Nickname})` : ''}</div>
                         <div className="text-[10px] font-bold text-slate-400 uppercase">{p.EmpID} • {p.Module || 'General'}</div>
                       </td>
                       <td className="px-6 py-5 text-[11px] font-bold text-slate-500">
