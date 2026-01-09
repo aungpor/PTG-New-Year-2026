@@ -13,7 +13,6 @@ import {
 } from 'firebase/firestore';
 import { db, COLLECTION_NAME, Participant } from '../services/firebase';
 import confetti from 'canvas-confetti';
-import '../index.css';
 
 const DrawView: React.FC = () => {
   const [inputEmpId, setInputEmpId] = useState('');
@@ -59,7 +58,7 @@ const DrawView: React.FC = () => {
         setCurrentUser(null);
       } else {
         const userData = { id: snap.docs[0].id, ...snap.docs[0].data() } as Participant;
-
+        
 
         if (userData.Status === 'Finished' && userData.DrawnResult) {
           const resQ = query(collection(db, COLLECTION_NAME), where('EmpID', '==', userData.DrawnResult), limit(1));
@@ -224,17 +223,7 @@ const DrawView: React.FC = () => {
   }
 
   return (
-    <div
-  className="min-h-screen flex flex-col items-center justify-center px-4 py-18 relative"
-  style={{
-    background: `
-      radial-gradient(1200px 600px at 50% 30%, rgba(180,235,215,.45), transparent 60%),
-      radial-gradient(900px 520px at 70% 80%, rgba(200,225,255,.35), transparent 65%),
-      linear-gradient(180deg, #f6fffb, #eefaf6)
-    `
-  }}
->
-
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-18 relative ">
       {/* Brand Header */}
       {!currentUser && <div className="text-center mb-8 ">
         <h1 className="text-6xl md:text-8xl font-black text-slate-900 tracking-tighter leading-none mb-2 italic">
@@ -291,31 +280,17 @@ const DrawView: React.FC = () => {
                 <div className={`absolute inset-0 bg-indigo-500/10 blur-[100px] rounded-full transition-all duration-1000 ${drawing ? 'opacity-100 scale-150 bg-rose-500/20' : 'opacity-40'}`}></div>
 
                 {/* 3D Glass Sphere */}
-                <div
-                  className={`relative w-80 h-80 lucky-orb glass-orb z-10 overflow-hidden
-    flex items-center justify-center transition-all duration-500
-    ${drawing ? 'shaking scale-110' : 'animate-bounce-slow'}
-  `}
-                >
-                  {/* Glass highlight เดิม */}
-                  <div className="absolute top-[10%] left-[20%] w-[25%] h-[12%] bg-white/30 rounded-full blur-sm rotate-[-30deg]" />
+                <div className={`relative w-80 h-80 lucky-orb z-10 overflow-hidden flex items-center justify-center transition-all duration-500 ${drawing ? 'shaking scale-110' : 'animate-bounce-slow'}`}>
+                  <div className="absolute top-[10%] left-[20%] w-[25%] h-[12%] bg-white/30 rounded-full blur-sm rotate-[-30deg]"></div>
 
-                  {/* Glass shine sweep (เพิ่มใหม่) */}
-                  <div className="glass-shine" />
-
-                  {/* Slot Machine Animation Overlay (เหมือนเดิม) */}
+                  {/* Slot Machine Animation Overlay */}
                   {drawing && shufflingName && (
                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-indigo-900/40 backdrop-blur-[2px] animate-in fade-in duration-300">
-                      <div className="text-white font-black text-5xl mb-2 animate-pulse">
-                        #{shufflingName.no}
-                      </div>
-                      <div className="text-white/80 font-bold text-xs uppercase tracking-widest px-4 text-center">
-                        {shufflingName.name}
-                      </div>
+                      <div className="text-white font-black text-5xl mb-2 animate-pulse">#{shufflingName.no}</div>
+                      <div className="text-white/80 font-bold text-xs uppercase tracking-widest px-4 text-center">{shufflingName.name}</div>
                     </div>
                   )}
 
-                  {/* ลูกบอล (เหมือนเดิม) */}
                   <div className="relative w-full h-full p-6 flex flex-wrap gap-2 items-end justify-center content-end">
                     {ballVisuals.map((b) => (
                       <div
@@ -333,7 +308,6 @@ const DrawView: React.FC = () => {
                     ))}
                   </div>
                 </div>
-
               </div>
 
               <div className="text-center space-y-4">
