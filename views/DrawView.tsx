@@ -225,15 +225,15 @@ const DrawView: React.FC = () => {
 
   return (
     <div
-  className="min-h-screen flex flex-col items-center justify-center px-4 py-18 relative"
-  style={{
-    background: `
+      className="min-h-screen flex flex-col items-center justify-center px-4 py-18 relative"
+      style={{
+        background: `
       radial-gradient(1200px 600px at 50% 30%, rgba(180,235,215,.45), transparent 60%),
       radial-gradient(900px 520px at 70% 80%, rgba(200,225,255,.35), transparent 65%),
       linear-gradient(180deg, #f6fffb, #eefaf6)
     `
-  }}
->
+      }}
+    >
 
       {/* Brand Header */}
       {!currentUser && <div className="text-center mb-8 ">
@@ -301,7 +301,7 @@ const DrawView: React.FC = () => {
                   <div className="absolute top-[10%] left-[20%] w-[25%] h-[12%] bg-white/30 rounded-full blur-sm rotate-[-30deg]" />
 
                   {/* Glass shine sweep (เพิ่มใหม่) */}
-                  <div className="glass-shine" />
+                  {/* <div className="glass-shine" /> */}
 
                   {/* Slot Machine Animation Overlay (เหมือนเดิม) */}
                   {drawing && shufflingName && (
