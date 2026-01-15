@@ -237,12 +237,12 @@ const DrawView: React.FC = () => {
 
       {/* Brand Header */}
       {!currentUser && <div className="text-center mb-8 ">
-        <h1 className="text-6xl md:text-8xl font-black text-slate-900 tracking-tighter leading-none mb-2 italic">
-          PTG <span className="text-[#00b751]">2026</span>
+        <h1 className="text-5xl md:text-8xl font-black text-slate-900 tracking-tighter leading-none mb-2 italic">
+          New year <span className="text-[#00b751]">2026</span>
         </h1>
         <div className="flex items-center justify-center gap-4">
           <div className="h-px w-10 bg-slate-300"></div>
-          <p className="text-slate-400 font-black uppercase tracking-[0.4em] text-[10px] md:text-xs">The Grand Lucky Draw</p>
+          <p className="text-slate-400 font-black uppercase tracking-[0.4em] text-[10px] md:text-xs">Finance and Sustainability</p>
           <div className="h-px w-10 bg-slate-300"></div>
         </div>
       </div>}
