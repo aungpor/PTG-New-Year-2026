@@ -397,7 +397,7 @@ const DrawView: React.FC = () => {
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee ID</span>
                     <span className="text-slate-800 font-black tracking-widest">{resultUser.EmpID}</span>
                   </div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em]">
+                  <div className="text-2xl font-bold text-slate-400 uppercase tracking-[0.3em]">
                     {resultUser.Module || 'Participant'}
                   </div>
                 </div>
